@@ -1,0 +1,23 @@
+use serde::Serialize;
+
+use kvlr::{client::request::Request, rpc::pipelining::MaybePipelinedValue};
+// TODO: Make this be imported automatically
+use kvlr_derives::Request;
+
+{% for fn in fns %}
+#[derive(Debug, Serialize, Request)]
+#[kvlr_request_function_id = {{ fn.id }}]
+#[kvlr_request_is_pipelined = false]
+#[kvlr_request_response = "{{ fn.ret }}"]
+pub struct {{ fn.name }} {
+    {{ fn.pub_args_name_type }}
+}
+
+#[derive(Debug, Serialize, Request)]
+#[kvlr_request_function_id = {{ fn.id }}]
+#[kvlr_request_is_pipelined = true]
+#[kvlr_request_response = "{{ fn.ret }}"]
+pub struct {{ fn.name }}Pipelined {
+    {{ fn.pub_args_name_type_maybe_pipelined }}
+}
+{% endfor %}

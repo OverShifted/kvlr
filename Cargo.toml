@@ -1,0 +1,3 @@
+[workspace]
+members = ["kvlr", "kvlr-server", "kvlr-client", "kvlr-derives"]
+resolver = "2"

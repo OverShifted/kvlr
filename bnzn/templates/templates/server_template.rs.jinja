@@ -1,0 +1,34 @@
+use std::{collections::HashMap, sync::Arc};
+
+use async_trait::async_trait;
+use futures::future::FutureExt;
+
+use kvlr::rpc::{connection_state::{into_handler, HandlerFn}, pipelining::MaybePipelinedValue};
+
+#[async_trait]
+pub trait SomeFunctions: Send + Sync + 'static {
+    {% for fn in fns %}
+    async fn {{ fn.name }}(&self, {{ fn.args_name_type }}) -> {{ fn.ret }};{% endfor %}
+
+    fn register(this: Arc<Self>, fns_map: &mut HashMap<u32, Arc<dyn HandlerFn>>) {
+        {% for fn in fns %}
+        {
+            let this = this.clone();
+            fns_map.insert({{ fn.id }}, into_handler(move |pld, slice: Vec<u8>| {
+                let this = this.clone();
+                async move {
+                    let args: ({{ ', '.join(fn.args_type) }},) = if let Some(pld) = pld {
+                        let args: ({{ fn.args_type_maybe_pipelined }},) = rmp_serde::from_slice(&slice).unwrap();
+                        ({% for i in range(len(fn.args_type)) %}args.{{i}}.resolve(&pld).await.unwrap(),{% endfor %})
+                    } else {
+                        rmp_serde::from_slice(&slice).unwrap()
+                    };
+
+                    let out = this.{{ fn.name }}({% for i in range(len(fn.args_type)) %}args.{{i}},{% endfor %}).shared().await;
+                    rmp_serde::to_vec(&out).unwrap()
+                }
+            }));
+        }
+        {% endfor %}
+    }
+}

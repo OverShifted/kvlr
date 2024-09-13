@@ -1,0 +1,5 @@
+add#1337 (u32, u32) -> u32;
+appendString#1234 (String, String) -> String;
+
+rangeVec#4321 (u32) -> Vec<u32>;
+callMeToPanic#1111 () -> ();

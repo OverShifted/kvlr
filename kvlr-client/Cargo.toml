@@ -1,0 +1,17 @@
+[package]
+name = "kvlr-client"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+kvlr = { path = "../kvlr" }
+kvlr-derives = { path = "../kvlr-derives" }
+tokio = { version = "1", features = ["full"] }
+tokio-rustls = "0.23"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+rustls = { version = "0.20", features = ["dangerous_configuration"] }
+rmp-serde = "1"
+serde = { version = "1", features = ["serde_derive"] }

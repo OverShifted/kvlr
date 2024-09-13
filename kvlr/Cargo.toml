@@ -1,0 +1,24 @@
+[package]
+name = "kvlr"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1"
+async-trait = "0"
+bytes = "1"
+ron = "0.8"
+rustls = "0.21"
+rustls-pemfile = "1.0"
+serde = { version = "1", features = ["serde_derive"] }
+rmp-serde = "1"
+serde_json = "1"
+thiserror = "1"
+tls-listener = { version = "0.5", features = ["rustls"] }
+tokio = { version = "1", features = ["net"] }
+tokio-rustls = "0.23"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+multimap = "0.10.0"
