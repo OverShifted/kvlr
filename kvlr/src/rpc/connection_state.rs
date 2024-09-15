@@ -1,11 +1,9 @@
-use std::{collections::HashMap, future::Future, pin::Pin, sync::Arc};
+use std::{collections::HashMap, pin::Pin, sync::Arc};
 
 use tokio::sync::{oneshot, Mutex, RwLock};
 
+use crate::promise_utils::FutureSyncSend;
 use super::{pipelining::PipeliningData, CallID, RpcResponse};
-
-pub trait FutureSyncSend<Out>: Future<Output = Out> + Sync + Send {}
-impl<T, Out> FutureSyncSend<Out> for T where T: Future<Output = Out> + Sync + Send {}
 
 pub trait HandlerFn:
     (Fn(Option<PipeliningData>, Vec<u8>) -> Pin<Box<dyn FutureSyncSend<Vec<u8>>>>) + Sync + Send

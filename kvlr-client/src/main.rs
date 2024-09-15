@@ -1,11 +1,11 @@
 mod client;
 
-use std::str::FromStr;
+use std::{str::FromStr, time::Duration};
 use std::sync::Arc;
 use std::time::SystemTime;
 use std::net::IpAddr;
 
-use kvlr::{client::request::Request, connection::Connection};
+use kvlr::{client::request::Request, connection::Connection, promise_utils::PromiseHelper};
 use tokio::net::TcpStream;
 use tokio_rustls::{
     rustls::{
@@ -14,7 +14,7 @@ use tokio_rustls::{
     },
     TlsConnector,
 };
-use tracing::{info, Level};
+use tracing::{info, error, Level};
 use tracing_subscriber::FmtSubscriber;
 
 struct TrueVerifier;
@@ -73,16 +73,15 @@ async fn main() {
     // TODO: Avoid hangs. maybe add a new CallID type?
     let call_id = client::Add {
         arg0: 10, arg1: 20
-    }.call_dropped(&rpc_manager).await.unwrap();
-    
-    
+    }.call_dropped(rpc_manager.clone()).await.unwrap();
+
     {
         let now = SystemTime::now();
         
         let res = client::AddPipelined {
             arg0: call_id.pipeline(),
             arg1: 20.into()
-        }.call(&rpc_manager).await.unwrap();
+        }.call(rpc_manager.clone()).await.unwrap();
         
         info!(?res, time=?now.elapsed().unwrap(), "AddPipelined");
     }
@@ -90,18 +89,26 @@ async fn main() {
     let res = client::AppendString {
         arg0: "Hello ".to_string(),
         arg1: "World".to_string()
-    }.call(&rpc_manager).await.unwrap();
+    }.call(rpc_manager.clone()).await.unwrap();
 
     info!(res, "AppendString");
 
     let res = client::RangeVec {
         arg0: 200
-    }.call(&rpc_manager).await.unwrap();
+    }.call(rpc_manager.clone()).await.unwrap();
 
     info!(?res, "RangeVec");
 
-    let res = client::CallMeToPanic {}.call(&rpc_manager).await.unwrap();
-    info!(?res, "CallMeToPanic");
+    client::CallMeToPanic.call(rpc_manager).on(
+        |s| async move {
+            info!(?s, "Yay!");
+        },
+        |e| async move {
+            error!(?e, "Opps! Server returned an error!");
+        }
+    );
+
+    tokio::time::sleep(Duration::from_millis(1)).await;
 
     connection.write().await.close().await.unwrap();
     info!("Sent!");

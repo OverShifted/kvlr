@@ -61,14 +61,10 @@ pub struct RangeVecPipelined {
 #[kvlr_request_function_id = 1111]
 #[kvlr_request_is_pipelined = false]
 #[kvlr_request_response = "()"]
-pub struct CallMeToPanic {
-    
-}
+pub struct CallMeToPanic;
 
 #[derive(Debug, Serialize, Request)]
 #[kvlr_request_function_id = 1111]
 #[kvlr_request_is_pipelined = true]
 #[kvlr_request_response = "()"]
-pub struct CallMeToPanicPipelined {
-    
-}
+pub struct CallMeToPanicPipelined;

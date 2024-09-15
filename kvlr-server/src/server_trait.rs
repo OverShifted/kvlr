@@ -13,8 +13,8 @@ pub trait SomeFunctions: Send + Sync + 'static {
     async fn append_string(&self, arg0: String, arg1: String) -> String;
     async fn range_vec(&self, arg0: u32) -> Vec<u32>;
     async fn call_me_to_panic(&self, ) -> ();
-    
-    #[allow(unused_variables)]
+
+    #[allow(unused)]
     fn register(this: Arc<Self>, fns_map: &mut HashMap<u32, Arc<dyn HandlerFn>>) {
         
         {
@@ -76,12 +76,7 @@ pub trait SomeFunctions: Send + Sync + 'static {
             fns_map.insert(1111, into_handler(move |pld, slice: Vec<u8>| {
                 let this = this.clone();
                 async move {
-                    let args: () = if let Some(pld) = pld {
-                        let args: () = rmp_serde::from_slice(&slice).unwrap();
-                        ()
-                    } else {
-                        rmp_serde::from_slice(&slice).unwrap()
-                    };
+                    
 
                     let out = this.call_me_to_panic().shared().await;
                     rmp_serde::to_vec(&out).unwrap()
