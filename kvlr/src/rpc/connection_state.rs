@@ -1,6 +1,6 @@
-use std::{collections::HashMap, pin::Pin, sync::Arc};
+use std::{collections::HashMap, pin::Pin, sync::{Arc, Mutex, RwLock}};
 
-use tokio::sync::{oneshot, Mutex, RwLock};
+use tokio::sync::oneshot;
 
 use crate::promise_utils::FutureSyncSend;
 use super::{pipelining::PipeliningData, CallID, RpcResponse};
@@ -49,7 +49,7 @@ impl Functions {
         function_id: u32,
         handler: Arc<dyn HandlerFn>,
     ) -> Option<Arc<dyn HandlerFn>> {
-        self.0.write().await.insert(function_id, handler)
+        self.0.write().unwrap().insert(function_id, handler)
     }
 }
 
@@ -66,6 +66,6 @@ impl Promises {
         call_id: CallID,
         sender: OneshotResponseSender,
     ) -> Option<OneshotResponseSender> {
-        self.0.write().await.insert(call_id, sender)
+        self.0.write().unwrap().insert(call_id, sender)
     }
 }

@@ -45,7 +45,7 @@ impl ServerCertVerifier for TrueVerifier {
 #[tokio::main]
 async fn main() {
     let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::INFO)
+        .with_max_level(Level::TRACE)
         .finish();
     tracing::subscriber::set_global_default(subscriber)
         .expect("Setting default subscriber failed.");

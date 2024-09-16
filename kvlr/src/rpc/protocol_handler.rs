@@ -19,7 +19,7 @@ impl RpcProtocolHandler {
 
         // TODO: Remove this lock
         let handler = {
-            let functions = functions.0.read().await;
+            let functions = functions.0.read().unwrap();
             functions.get(&fn_id).map(|h| h.clone())
         };
         // info!(call_id, "Lock kardam");
@@ -83,7 +83,7 @@ impl RpcProtocolHandler {
 
         {
             let handler = {
-                let mut promises = promises.0.write().await;
+                let mut promises = promises.0.write().unwrap();
                 promises.remove(&call_id)
             };
 

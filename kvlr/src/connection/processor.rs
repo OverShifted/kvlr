@@ -52,6 +52,12 @@ pub(super) async fn write_processor(
     loop {
         match rx.recv().await {
             Some((frame, tx)) => {
+                // frame.write_to_stream(&mut this).await.unwrap();
+                // this.flush().await.unwrap();
+
+                // let _ = tx.send(Ok(()));
+
+                // FIXME: It seems like calling a new async fn has a noticable amount of overhead
                 let _ = tx.send(write_and_flush(&mut this, &frame).await);
             }
 

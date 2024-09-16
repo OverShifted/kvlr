@@ -5,14 +5,13 @@ use crate::rpc::connection_state::HandlerFn;
 use crate::utils::Unfold;
 use anyhow::Context;
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use tls_listener::TlsListener;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
-use tokio::sync::RwLock;
 use tokio_rustls::TlsAcceptor;
-use tracing::{error, info, trace};
+use tracing::{error, info};
 
 pub struct Server {
     listener: TlsListener<TcpListener, TlsAcceptor>,
@@ -53,7 +52,7 @@ impl Server {
                     };
                 },
                 _ = tokio::signal::ctrl_c() => {
-                    trace!("Terminating.");
+                    info!("Terminating.");
                     break;
                 }
             }

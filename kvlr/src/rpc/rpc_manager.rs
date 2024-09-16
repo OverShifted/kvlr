@@ -1,7 +1,7 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use serde::{de::DeserializeOwned, Serialize};
-use tokio::sync::{oneshot, Mutex};
+use tokio::sync::oneshot;
 
 use crate::{client::request::Request, connection::{frame::Frame, ConnectionFrameSender}};
 
@@ -27,7 +27,7 @@ impl RpcManager {
 
         match out {
             // TODO: Make call_raw return the called call_id
-            Ok(_rx) => Ok((*self.next_call_id.lock().await - 1).into()),
+            Ok(_rx) => Ok((*self.next_call_id.lock().unwrap() - 1).into()),
             Err(e) => Err(e)
         }
     }
@@ -61,7 +61,7 @@ impl RpcManager {
 
         match out {
             // TODO: Make call_raw return the called call_id
-            Ok(_) => Ok((*self.next_call_id.lock().await - 1).into()),
+            Ok(_) => Ok((*self.next_call_id.lock().unwrap() - 1).into()),
             Err(e) => Err(e)
         }
     }
@@ -130,7 +130,7 @@ impl RpcManager {
     }
 
     async fn get_next_call_id(&self) -> CallID {
-        let mut lock = self.next_call_id.lock().await;
+        let mut lock = self.next_call_id.lock().unwrap();
         let prev_value = *lock;
         *lock += 1;
 

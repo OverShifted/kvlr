@@ -3,6 +3,7 @@ mod processor;
 pub(crate) mod protocol_handler;
 pub mod stream;
 
+use std::sync::{Mutex, RwLock};
 use std::{collections::HashMap, mem, sync::Arc};
 
 use thiserror::Error;
@@ -10,7 +11,7 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::{
     sync::{
         mpsc::{self, Receiver, Sender},
-        oneshot, Mutex, RwLock,
+        oneshot,
     },
     task::JoinHandle,
 };
@@ -157,7 +158,7 @@ impl Connection {
         mut self,
         rx_buffer_size: usize,
         tx_buffer_size: usize,
-    ) -> Arc<RwLock<Connection>> {
+    ) -> Arc<tokio::sync::RwLock<Connection>> {
         // Not the best thing we could do...
         let prev_state = mem::replace(&mut self.state, State::Undefined);
 
@@ -171,7 +172,7 @@ impl Connection {
         let (tx, out_rx) = mpsc::channel(rx_buffer_size);
         let (out_tx, rx) = mpsc::channel(tx_buffer_size);
 
-        let self_arc = Arc::new(RwLock::new(self));
+        let self_arc = Arc::new(tokio::sync::RwLock::new(self));
 
         let read_processor_handle = tokio::spawn(read_processor(self_arc.clone(), stream_read, tx));
         let write_processor_handle = tokio::spawn(write_processor(stream_write, rx));
