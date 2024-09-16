@@ -1,6 +1,6 @@
 // use serde::{Deserialize, Serialize};
 
-use std::{io::Read, string::FromUtf8Error};
+use std::{io::{Read, Write}, string::FromUtf8Error, vec};
 
 use bytes::Buf;
 use thiserror::Error;
@@ -58,15 +58,20 @@ impl Frame {
     /// Write a frame to a stream by encoding it.
     /// This method wont flush the stream.
     pub async fn write_to_stream(&self, stream: &mut dyn StreamWrite) -> std::io::Result<()> {
-        // Frame's length
-        stream.write_u32(self.len() as u32).await?;
-        // Frame's protocol's length
-        stream.write_u32(self.protocol.len() as u32).await?;
-        // Frame's protocol
-        stream.write_all(self.protocol.as_bytes()).await?;
-        // Frame's body
-        stream.write_all(&self.body).await?;
+        let mut buffer = vec![0u8; 4 + self.len()];
 
+        // TODO: (General) Client hangs on server proccess panic
+        let mut writer = std::io::Cursor::new(&mut buffer);
+        // Frame's length
+        Write::write(&mut writer, &(self.len() as u32).to_be_bytes()).unwrap();
+        // Frame's protocol's length
+        Write::write(&mut writer, &(self.protocol.len() as u32).to_be_bytes()).unwrap();
+        // Frame's protocol
+        Write::write(&mut writer, &self.protocol.as_bytes()).unwrap();
+        // Frame's body
+        Write::write(&mut writer, &self.body).unwrap();
+
+        stream.write_all(&buffer).await?;
         Ok(())
     }
 
