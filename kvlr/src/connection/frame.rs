@@ -28,29 +28,29 @@ impl Frame {
         let frame_len = stream
             .read_u32()
             .await
-            .map_err(|e| RecvFrameError::IoError(e))?;
+            .map_err(RecvFrameError::IoError)?;
 
         let mut frame_data = vec![0; frame_len as usize];
 
         stream
             .read_exact(&mut frame_data)
             .await
-            .map_err(|e| RecvFrameError::IoError(e))?;
+            .map_err(RecvFrameError::IoError)?;
 
         let mut reader = frame_data.reader();
         let mut reader = reader.get_mut();
 
         let protocol_len = reader.get_u32();
         let mut protocol = vec![0; protocol_len as usize];
-        Read::read_exact(&mut reader, &mut protocol).map_err(|e| RecvFrameError::IoError(e))?;
+        Read::read_exact(&mut reader, &mut protocol).map_err(RecvFrameError::IoError)?;
 
         let body_len = frame_len - protocol_len - 4;
         let mut body = vec![0; body_len as usize];
-        Read::read_exact(&mut reader, &mut body).map_err(|e| RecvFrameError::IoError(e))?;
+        Read::read_exact(&mut reader, &mut body).map_err(RecvFrameError::IoError)?;
 
         Ok(Frame {
             protocol: String::from_utf8(protocol)
-                .map_err(|e| RecvFrameError::InvalidProtocol(e))?,
+                .map_err(RecvFrameError::InvalidProtocol)?,
             body,
         })
     }
@@ -67,7 +67,7 @@ impl Frame {
         // Frame's protocol's length
         Write::write(&mut writer, &(self.protocol.len() as u32).to_be_bytes()).unwrap();
         // Frame's protocol
-        Write::write(&mut writer, &self.protocol.as_bytes()).unwrap();
+        Write::write(&mut writer, self.protocol.as_bytes()).unwrap();
         // Frame's body
         Write::write(&mut writer, &self.body).unwrap();
 
@@ -76,6 +76,7 @@ impl Frame {
     }
 
     /// Frame's size on network
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         4 + self.protocol.len() + self.body.len()
     }

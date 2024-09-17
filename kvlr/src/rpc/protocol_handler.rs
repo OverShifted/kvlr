@@ -11,16 +11,25 @@ use super::{connection_state::{Functions, Promises}, pipelining::PipeliningData,
 
 pub struct RpcProtocolHandler;
 
+struct HandleCallParams<'a> {
+    frame: &'a Frame,
+    is_pipelined: bool,
+    drop_answer: bool,
+    functions: &'a Functions,
+    frame_sender: &'a ConnectionFrameSender,
+    pipelining_data: &'a PipeliningData
+}
+
 impl RpcProtocolHandler {
-    async fn handle_call(&self, mut reader: impl Buf, frame: &Frame, is_pipelined: bool, drop_answer: bool, functions: &Functions, frame_sender: &ConnectionFrameSender, pipelining_data: &PipeliningData) {
+    async fn handle_call(&self, mut reader: impl Buf, params: HandleCallParams<'_>) {
         let fn_id = reader.get_u32();
         let call_id = CallID(reader.get_u32());
         // info!(call_id, is_pipelined, "Incoming call");
 
         // TODO: Remove this lock
         let handler = {
-            let functions = functions.0.read().unwrap();
-            functions.get(&fn_id).map(|h| h.clone())
+            let functions = params.functions.0.read().unwrap();
+            functions.get(&fn_id).cloned()
         };
         // info!(call_id, "Lock kardam");
 
@@ -28,15 +37,15 @@ impl RpcProtocolHandler {
             Some(h) => {
                 // info!(call_id, "Berim handle");
 
-                let args_wire = frame.body[9..].to_vec();
-                let frame_sender = frame_sender.clone();
-                let pipelining_data = pipelining_data.clone();
+                let args_wire = params.frame.body[9..].to_vec();
+                let frame_sender = params.frame_sender.clone();
+                let pipelining_data = params.pipelining_data.clone();
 
                 // info!(call_id, "Berim spawn");
                 tokio::spawn(async move {
                     // info!(call_id, "Salam spawn");
                     let logic_handler = {
-                        let pipelining_data = if is_pipelined {
+                        let pipelining_data = if params.is_pipelined {
                             Some(pipelining_data.clone())
                         } else {
                             None
@@ -58,9 +67,8 @@ impl RpcProtocolHandler {
                     let response_wire = rmp_serde::to_vec(&rpc_response).unwrap();
                     pipelining_data.add_result(call_id, rpc_response).await;
 
-                    if !drop_answer {
-                        let body =
-                            vec![vec![0u8], call_id.0.to_be_bytes().to_vec(), response_wire].concat();
+                    if !params.drop_answer {
+                        let body = [vec![0u8], call_id.0.to_be_bytes().to_vec(), response_wire].concat();
 
                         frame_sender
                             .send_frame(Frame {
@@ -120,7 +128,7 @@ impl ProtocolHandler for RpcProtocolHandler {
         let drop_answer = flags & 0b100 != 0;
 
         if is_call {
-            self.handle_call(reader, frame, is_pipelined, drop_answer, &functions, &frame_sender, &pipelining_data).await;
+            self.handle_call(reader, HandleCallParams{ frame, is_pipelined, drop_answer, functions: &functions, frame_sender: &frame_sender, pipelining_data: &pipelining_data }).await;
         } else {
             self.handle_response(reader, &promises).await;
         };

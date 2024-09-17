@@ -103,7 +103,7 @@ impl RpcManager {
 
         // info!(call_id, is_pipelined, "{:b}", flags);
 
-        let body = vec![
+        let body = [
             vec![flags],
             function_id.to_be_bytes().to_vec(),
             call_id.0.to_be_bytes().to_vec(),

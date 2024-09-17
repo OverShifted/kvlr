@@ -251,7 +251,6 @@ impl ConnectionFrameSender {
         self.0.send((frame, ret_tx)).await.unwrap();
 
         // TODO: Is the unwrap always "valid"?
-        let res = ret_rx.await.unwrap();
-        res
+        ret_rx.await.unwrap()
     }
 }

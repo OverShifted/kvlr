@@ -15,12 +15,8 @@ impl CallID {
     }
 }
 
-impl Into<u32> for CallID {
-    fn into(self) -> u32 { self.0 }
-}
-
-impl Into<CallID> for u32 {
-    fn into(self) -> CallID { CallID(self) }
+impl From<u32> for CallID {
+    fn from(v: u32) -> CallID { CallID(v) }
 }
 
 #[derive(Clone, Copy, Serialize, Deserialize)]

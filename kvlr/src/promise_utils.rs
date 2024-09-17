@@ -7,10 +7,10 @@ impl<T, Out> FutureSyncSend<Out> for T where T: Future<Output = Out> + Sync + Se
 
 #[async_trait]
 pub trait PromiseHelper<S, E> {
-    fn on<SF: FnOnce(S) -> SO, EF: FnOnce(E) -> EO, SO, EO>(self, success: SF, fail: EF)
+    fn on<SF, EF, SO, EO>(self, success: SF, fail: EF)
     where
-        SF: Send + 'static,
-        EF: Send + 'static,
+        SF: FnOnce(S) -> SO + Send + 'static,
+        EF: FnOnce(E) -> EO + Send + 'static,
 
         SO: FutureSyncSend<()> + 'static,
         EO: FutureSyncSend<()> + 'static;
@@ -23,10 +23,10 @@ where
     E: Send + 'static,
     F: Future<Output = Result<S, E>> + Sized + Send + 'static {
 
-    fn on<SF: FnOnce(S) -> SO, EF: FnOnce(E) -> EO, SO, EO>(self, success: SF, fail: EF)
+    fn on<SF, EF, SO, EO>(self, success: SF, fail: EF)
     where
-        SF: Send + 'static,
-        EF: Send + 'static,
+        SF: FnOnce(S) -> SO + Send + 'static,
+        EF: FnOnce(E) -> EO + Send + 'static,
 
         SO: FutureSyncSend<()> + 'static,
         EO: FutureSyncSend<()> + 'static {
