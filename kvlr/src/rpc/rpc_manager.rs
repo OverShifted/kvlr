@@ -3,9 +3,15 @@ use std::sync::{Arc, Mutex};
 use serde::{de::DeserializeOwned, Serialize};
 use tokio::sync::oneshot;
 
-use crate::{client::request::Request, connection::{frame::Frame, ConnectionFrameSender}};
+use crate::{
+    client::request::Request,
+    connection::{frame::Frame, ConnectionFrameSender},
+};
 
-use super::{connection_state::{OneshotResponseReceiver, Promises}, CallID};
+use super::{
+    connection_state::{OneshotResponseReceiver, Promises},
+    CallID,
+};
 
 // An "entry point" for calling functions
 #[derive(Clone)]
@@ -18,29 +24,37 @@ pub struct RpcManager {
 
 impl RpcManager {
     pub async fn call_request_dropped<T: Request>(&self, request: &T) -> Result<CallID, ()> {
-        let out = self.call_raw(
-            T::FUNCTION_ID,
-            T::IS_PIPELINED,
-            false,
-            rmp_serde::to_vec(request).unwrap()
-        ).await;
+        let out = self
+            .call_raw(
+                T::FUNCTION_ID,
+                T::IS_PIPELINED,
+                false,
+                rmp_serde::to_vec(request).unwrap(),
+            )
+            .await;
 
         match out {
             // TODO: Make call_raw return the called call_id
             Ok(_rx) => Ok((*self.next_call_id.lock().unwrap() - 1).into()),
-            Err(e) => Err(e)
+            Err(e) => Err(e),
         }
     }
 
     pub async fn call_request<T: Request>(&self, request: &T) -> Result<T::Response, ()> {
-        let out = self.call_raw(
-            T::FUNCTION_ID,
-            T::IS_PIPELINED,
-            false,
-            rmp_serde::to_vec(request).unwrap()
-        ).await;
+        let out = self
+            .call_raw(
+                T::FUNCTION_ID,
+                T::IS_PIPELINED,
+                false,
+                rmp_serde::to_vec(request).unwrap(),
+            )
+            .await;
 
-        let respnse_wire = out.map_err(|_| ())?.await.map_err(|_| ())?.map_err(|_| ())?;
+        let respnse_wire = out
+            .map_err(|_| ())?
+            .await
+            .map_err(|_| ())?
+            .map_err(|_| ())?;
         Ok(rmp_serde::from_slice(&respnse_wire).unwrap())
     }
 
@@ -62,7 +76,7 @@ impl RpcManager {
         match out {
             // TODO: Make call_raw return the called call_id
             Ok(_) => Ok((*self.next_call_id.lock().unwrap() - 1).into()),
-            Err(e) => Err(e)
+            Err(e) => Err(e),
         }
     }
 
@@ -82,7 +96,11 @@ impl RpcManager {
             )
             .await;
 
-        let respnse_wire = out.map_err(|_| ())?.await.map_err(|_| ())?.map_err(|_| ())?;
+        let respnse_wire = out
+            .map_err(|_| ())?
+            .await
+            .map_err(|_| ())?
+            .map_err(|_| ())?;
         Ok(rmp_serde::from_slice(&respnse_wire).unwrap())
     }
 

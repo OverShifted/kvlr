@@ -1,9 +1,12 @@
 // #![feature(async_closure)]
 
-mod server_trait;
 mod server_impl;
+mod server_trait;
 
-use std::{collections::HashMap, sync::{Arc, RwLock}};
+use std::{
+    collections::HashMap,
+    sync::{Arc, RwLock},
+};
 
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
@@ -23,14 +26,10 @@ async fn main() -> anyhow::Result<()> {
     let mut functions = HashMap::new();
     ServerImpl::register(Arc::new(ServerImpl), &mut functions);
 
-    Server::new(
-        "key.pem",
-        "cert.pem",
-        Arc::new(RwLock::new(functions))
-    )
-    .await?
-    .listen()
-    .await;
+    Server::new("key.pem", "cert.pem", Arc::new(RwLock::new(functions)))
+        .await?
+        .listen()
+        .await;
 
     Ok(())
 }

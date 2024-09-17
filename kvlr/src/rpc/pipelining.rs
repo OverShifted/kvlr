@@ -11,7 +11,7 @@ pub struct PipeliningData {
     // TODO: SUPER IMPORTANT: Drop values after some time!
     // TODO: Avoid encoding to byte
     available: Arc<RwLock<HashMap<CallID, RpcResponse>>>,
-    wishlist: Arc<RwLock<MultiMap<CallID, oneshot::Sender<RpcResponse>>>>
+    wishlist: Arc<RwLock<MultiMap<CallID, oneshot::Sender<RpcResponse>>>>,
 }
 
 impl PipeliningData {
@@ -40,7 +40,7 @@ impl PipeliningData {
 #[derive(Debug, Deserialize, Serialize)]
 pub enum MaybePipelinedValue<T> {
     Direct(T),
-    Pipelined(CallID)
+    Pipelined(CallID),
 }
 
 impl<'a, T: serde::de::DeserializeOwned> MaybePipelinedValue<T> {

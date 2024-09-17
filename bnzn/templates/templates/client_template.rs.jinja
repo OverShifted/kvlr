@@ -3,7 +3,6 @@ use serde::Serialize;
 use kvlr::{client::request::Request, rpc::pipelining::MaybePipelinedValue};
 // TODO: Make this be imported automatically
 use kvlr_derives::Request;
-
 {% for fn in fns %}
 #[derive(Debug, Serialize, Request)]
 #[kvlr_request_function_id = {{ fn.id }}]

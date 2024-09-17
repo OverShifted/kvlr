@@ -1,9 +1,11 @@
 mod client;
 
-use std::{str::FromStr, time::Duration};
-use std::sync::Arc;
-use std::time::SystemTime;
-use std::net::IpAddr;
+use std::{
+    net::IpAddr,
+    str::FromStr,
+    sync::Arc,
+    time::{Duration, SystemTime},
+};
 
 use kvlr::{client::request::Request, connection::Connection, promise_utils::PromiseHelper};
 use tokio::net::TcpStream;
@@ -14,7 +16,7 @@ use tokio_rustls::{
     },
     TlsConnector,
 };
-use tracing::{info, error, Level};
+use tracing::{error, info, Level};
 use tracing_subscriber::FmtSubscriber;
 
 struct TrueVerifier;
@@ -71,31 +73,39 @@ async fn main() {
     let rpc_manager = connection.read().await.create_rpc_manager().await;
 
     // TODO: Avoid hangs. maybe add a new CallID type?
-    let call_id = client::Add {
-        arg0: 10, arg1: 20
-    }.call_dropped(rpc_manager.clone()).await.unwrap();
+    let call_id = client::Add { arg0: 10, arg1: 20 }
+        .call_dropped(rpc_manager.clone())
+        .await
+        .unwrap();
 
     {
         let now = SystemTime::now();
-        
+
         let res = client::AddPipelined {
             arg0: call_id.pipeline(),
-            arg1: 20.into()
-        }.call(rpc_manager.clone()).await.unwrap();
-        
+            arg1: 20.into(),
+        }
+        .call(rpc_manager.clone())
+        .await
+        .unwrap();
+
         info!(?res, time=?now.elapsed().unwrap(), "AddPipelined");
     }
-    
+
     let res = client::AppendString {
         arg0: "Hello ".to_string(),
-        arg1: "World".to_string()
-    }.call(rpc_manager.clone()).await.unwrap();
+        arg1: "World".to_string(),
+    }
+    .call(rpc_manager.clone())
+    .await
+    .unwrap();
 
     info!(res, "AppendString");
 
-    let res = client::RangeVec {
-        arg0: 200
-    }.call(rpc_manager.clone()).await.unwrap();
+    let res = client::RangeVec { arg0: 200 }
+        .call(rpc_manager.clone())
+        .await
+        .unwrap();
 
     info!(?res, "RangeVec");
 
@@ -105,7 +115,7 @@ async fn main() {
         },
         |e| async move {
             error!(?e, "Opps! Server returned an error!");
-        }
+        },
     );
 
     tokio::time::sleep(Duration::from_millis(1)).await;

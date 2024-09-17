@@ -18,7 +18,7 @@ impl SomeFunctions for ServerImpl {
         (0..arg0).collect()
     }
 
-    async fn call_me_to_panic(&self, ) -> () {
+    async fn call_me_to_panic(&self) -> () {
         panic!("I was intended to panic!")
     }
 }

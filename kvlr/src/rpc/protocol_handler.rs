@@ -1,13 +1,25 @@
-use std::{io::{Cursor, Read}, sync::Arc};
+use std::{
+    io::{Cursor, Read},
+    sync::Arc,
+};
 
 use async_trait::async_trait;
 use bytes::Buf;
 use tokio::sync::RwLock;
 use tracing::{error, warn};
 
-use crate::{connection::{frame::Frame, protocol_handler::ProtocolHandler, Connection, ConnectionFrameSender}, rpc::InternalServerError};
+use crate::{
+    connection::{
+        frame::Frame, protocol_handler::ProtocolHandler, Connection, ConnectionFrameSender,
+    },
+    rpc::InternalServerError,
+};
 
-use super::{connection_state::{Functions, Promises}, pipelining::PipeliningData, CallID};
+use super::{
+    connection_state::{Functions, Promises},
+    pipelining::PipeliningData,
+    CallID,
+};
 
 pub struct RpcProtocolHandler;
 
@@ -17,7 +29,7 @@ struct HandleCallParams<'a> {
     drop_answer: bool,
     functions: &'a Functions,
     frame_sender: &'a ConnectionFrameSender,
-    pipelining_data: &'a PipeliningData
+    pipelining_data: &'a PipeliningData,
 }
 
 impl RpcProtocolHandler {
@@ -51,15 +63,18 @@ impl RpcProtocolHandler {
                             None
                         };
 
-                        tokio::spawn(h(pipelining_data,args_wire)).await
+                        tokio::spawn(h(pipelining_data, args_wire)).await
                     };
 
                     let rpc_response = match logic_handler {
-                        Ok(out) => {
-                            Ok(out)
-                        }
+                        Ok(out) => Ok(out),
                         Err(err) => {
-                            error!(?err, ?call_id, fn_id, "Call handler failed! (Probably panicked)");
+                            error!(
+                                ?err,
+                                ?call_id,
+                                fn_id,
+                                "Call handler failed! (Probably panicked)"
+                            );
                             Err(InternalServerError)
                         }
                     };
@@ -68,7 +83,8 @@ impl RpcProtocolHandler {
                     pipelining_data.add_result(call_id, rpc_response).await;
 
                     if !params.drop_answer {
-                        let body = [vec![0u8], call_id.0.to_be_bytes().to_vec(), response_wire].concat();
+                        let body =
+                            [vec![0u8], call_id.0.to_be_bytes().to_vec(), response_wire].concat();
 
                         frame_sender
                             .send_frame(Frame {
@@ -128,7 +144,18 @@ impl ProtocolHandler for RpcProtocolHandler {
         let drop_answer = flags & 0b100 != 0;
 
         if is_call {
-            self.handle_call(reader, HandleCallParams{ frame, is_pipelined, drop_answer, functions: &functions, frame_sender: &frame_sender, pipelining_data: &pipelining_data }).await;
+            self.handle_call(
+                reader,
+                HandleCallParams {
+                    frame,
+                    is_pipelined,
+                    drop_answer,
+                    functions: &functions,
+                    frame_sender: &frame_sender,
+                    pipelining_data: &pipelining_data,
+                },
+            )
+            .await;
         } else {
             self.handle_response(reader, &promises).await;
         };

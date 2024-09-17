@@ -1,9 +1,14 @@
+#![rustfmt::skip]
+
 use std::{collections::HashMap, sync::Arc};
 
 use async_trait::async_trait;
 use futures::future::FutureExt;
 
-use kvlr::rpc::{connection_state::{into_handler, HandlerFn}, pipelining::MaybePipelinedValue};
+use kvlr::rpc::{
+    connection_state::{into_handler, HandlerFn},
+    pipelining::MaybePipelinedValue,
+};
 
 #[async_trait]
 pub trait SomeFunctions: Send + Sync + 'static {

@@ -54,7 +54,7 @@ enum State {
         tx: Sender<(Frame, oneshot::Sender<std::io::Result<()>>)>,
 
         read_processor_handle: JoinHandle<()>,
-        write_processor_handle: JoinHandle<()>
+        write_processor_handle: JoinHandle<()>,
     },
 
     // Not the best idea ever!
@@ -183,7 +183,7 @@ impl Connection {
             tx: out_tx,
 
             read_processor_handle,
-            write_processor_handle
+            write_processor_handle,
         };
 
         self_arc

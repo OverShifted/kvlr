@@ -1,6 +1,10 @@
 // use serde::{Deserialize, Serialize};
 
-use std::{io::{Read, Write}, string::FromUtf8Error, vec};
+use std::{
+    io::{Read, Write},
+    string::FromUtf8Error,
+    vec,
+};
 
 use bytes::Buf;
 use thiserror::Error;
@@ -25,10 +29,7 @@ pub enum RecvFrameError {
 impl Frame {
     /// Read a frame by decoding it from a stream.
     pub async fn read_from_stream(stream: &mut dyn StreamRead) -> Result<Frame, RecvFrameError> {
-        let frame_len = stream
-            .read_u32()
-            .await
-            .map_err(RecvFrameError::IoError)?;
+        let frame_len = stream.read_u32().await.map_err(RecvFrameError::IoError)?;
 
         let mut frame_data = vec![0; frame_len as usize];
 
@@ -49,8 +50,7 @@ impl Frame {
         Read::read_exact(&mut reader, &mut body).map_err(RecvFrameError::IoError)?;
 
         Ok(Frame {
-            protocol: String::from_utf8(protocol)
-                .map_err(RecvFrameError::InvalidProtocol)?,
+            protocol: String::from_utf8(protocol).map_err(RecvFrameError::InvalidProtocol)?,
             body,
         })
     }

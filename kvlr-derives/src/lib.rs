@@ -2,7 +2,14 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, DeriveInput, Expr, Lit};
 
-#[proc_macro_derive(Request, attributes(kvlr_request_function_id, kvlr_request_is_pipelined, kvlr_request_response))]
+#[proc_macro_derive(
+    Request,
+    attributes(
+        kvlr_request_function_id,
+        kvlr_request_is_pipelined,
+        kvlr_request_response
+    )
+)]
 pub fn request(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     // input.attrs[0].meta.path().segments[0].ident.
@@ -26,7 +33,7 @@ pub fn request(input: TokenStream) -> TokenStream {
                 } else {
                     panic!("Invalid value for `kvlr_request_function_id`. It must be an integer literal.");
                 }
-            },
+            }
             "kvlr_request_is_pipelined" => {
                 if let Expr::Lit(ref lit, ..) = name_value.value {
                     if let Lit::Bool(ref token) = lit.lit {
@@ -37,7 +44,7 @@ pub fn request(input: TokenStream) -> TokenStream {
                 } else {
                     panic!("Invalid value for `kvlr_request_is_pipelined`. It must be a boolean literal.");
                 }
-            },
+            }
             "kvlr_request_response" => {
                 if let Expr::Lit(ref lit, ..) = name_value.value {
                     if let Lit::Str(ref token) = lit.lit {
@@ -46,9 +53,11 @@ pub fn request(input: TokenStream) -> TokenStream {
                         panic!("Invalid value for `kvlr_request_response`. It must be a string literal.");
                     }
                 } else {
-                    panic!("Invalid value for `kvlr_request_response`. It must be a string literal.");
+                    panic!(
+                        "Invalid value for `kvlr_request_response`. It must be a string literal."
+                    );
                 }
-            },
+            }
             _ => unreachable!(),
         }
     }
@@ -68,6 +77,6 @@ pub fn request(input: TokenStream) -> TokenStream {
             type Response = #response_type;
         }
     };
-    
+
     TokenStream::from(expanded)
 }

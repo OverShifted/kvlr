@@ -1,6 +1,9 @@
 use serde::{de::DeserializeOwned, Serialize};
 
-use crate::{promise_utils::FutureSyncSend, rpc::{rpc_manager::RpcManager, CallID}};
+use crate::{
+    promise_utils::FutureSyncSend,
+    rpc::{rpc_manager::RpcManager, CallID},
+};
 
 pub trait Request: Serialize + Sized + Sync {
     const FUNCTION_ID: u32;
@@ -9,14 +12,10 @@ pub trait Request: Serialize + Sized + Sync {
     type Response: DeserializeOwned;
 
     fn call(&self, rpc_manager: RpcManager) -> impl FutureSyncSend<Result<Self::Response, ()>> {
-        async move {
-            rpc_manager.call_request(self).await
-        }
+        async move { rpc_manager.call_request(self).await }
     }
 
     fn call_dropped(&self, rpc_manager: RpcManager) -> impl FutureSyncSend<Result<CallID, ()>> {
-        async move {
-            rpc_manager.call_request_dropped(self).await
-        }
+        async move { rpc_manager.call_request_dropped(self).await }
     }
 }

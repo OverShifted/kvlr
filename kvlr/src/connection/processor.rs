@@ -12,7 +12,8 @@ use tracing::error;
 use super::{frame::Frame, protocol_handler::ProtocolHandler};
 
 use crate::{
-    connection::{Connection, StreamRead, StreamWrite}, rpc::protocol_handler::RpcProtocolHandler,
+    connection::{Connection, StreamRead, StreamWrite},
+    rpc::protocol_handler::RpcProtocolHandler,
 };
 
 // TODO: think (more) about termination

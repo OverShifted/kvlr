@@ -1,7 +1,7 @@
 pub mod connection_state;
 pub mod pipelining;
-pub mod rpc_manager;
 pub mod protocol_handler;
+pub mod rpc_manager;
 
 use pipelining::MaybePipelinedValue;
 use serde::{Deserialize, Serialize};
@@ -16,7 +16,9 @@ impl CallID {
 }
 
 impl From<u32> for CallID {
-    fn from(v: u32) -> CallID { CallID(v) }
+    fn from(v: u32) -> CallID {
+        CallID(v)
+    }
 }
 
 #[derive(Clone, Copy, Serialize, Deserialize)]
