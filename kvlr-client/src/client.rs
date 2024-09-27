@@ -10,7 +10,7 @@ use kvlr_derives::Request;
 #[kvlr_request_response = "u32"]
 pub struct Add {
     pub arg0: u32,
-    pub arg1: u32,
+    pub arg1: u32
 }
 
 #[derive(Debug, Serialize, Request)]
@@ -19,7 +19,7 @@ pub struct Add {
 #[kvlr_request_response = "u32"]
 pub struct AddPipelined {
     pub arg0: MaybePipelinedValue<u32>,
-    pub arg1: MaybePipelinedValue<u32>,
+    pub arg1: MaybePipelinedValue<u32>
 }
 
 #[derive(Debug, Serialize, Request)]
@@ -28,7 +28,7 @@ pub struct AddPipelined {
 #[kvlr_request_response = "String"]
 pub struct AppendString {
     pub arg0: String,
-    pub arg1: String,
+    pub arg1: String
 }
 
 #[derive(Debug, Serialize, Request)]
@@ -37,7 +37,7 @@ pub struct AppendString {
 #[kvlr_request_response = "String"]
 pub struct AppendStringPipelined {
     pub arg0: MaybePipelinedValue<String>,
-    pub arg1: MaybePipelinedValue<String>,
+    pub arg1: MaybePipelinedValue<String>
 }
 
 #[derive(Debug, Serialize, Request)]
@@ -45,7 +45,7 @@ pub struct AppendStringPipelined {
 #[kvlr_request_is_pipelined = false]
 #[kvlr_request_response = "Vec<u32>"]
 pub struct RangeVec {
-    pub arg0: u32,
+    pub arg0: u32
 }
 
 #[derive(Debug, Serialize, Request)]
@@ -53,7 +53,7 @@ pub struct RangeVec {
 #[kvlr_request_is_pipelined = true]
 #[kvlr_request_response = "Vec<u32>"]
 pub struct RangeVecPipelined {
-    pub arg0: MaybePipelinedValue<u32>,
+    pub arg0: MaybePipelinedValue<u32>
 }
 
 #[derive(Debug, Serialize, Request)]

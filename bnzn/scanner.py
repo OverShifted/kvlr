@@ -1,3 +1,5 @@
+from typing import Optional
+
 from bnzn_token import Token, TokenType
 
 class Scanner:
@@ -7,7 +9,7 @@ class Scanner:
         self.i = 0
         self.line = 1
 
-    def add_token(self, token_type: TokenType, lexeme: str = None):
+    def add_token(self, token_type: TokenType, lexeme: Optional[str] = None):
         self.tokens.append(Token(token_type, lexeme, self.line))
 
     def scan(self):

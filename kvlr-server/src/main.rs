@@ -1,6 +1,5 @@
-// #![feature(async_closure)]
-
 mod server_impl;
+#[rustfmt::skip]
 mod server_trait;
 
 use std::{

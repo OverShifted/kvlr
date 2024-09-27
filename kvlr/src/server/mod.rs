@@ -1,4 +1,5 @@
 pub mod tls;
+// pub mod rpc_macro;
 
 use crate::connection::Connection;
 use crate::rpc::connection_state::HandlerFn;
@@ -61,10 +62,10 @@ impl Server {
 
     // TODO: Await for connection close
     async fn handle_connection(
-        socket: impl AsyncReadExt + AsyncWriteExt + Send + Unpin + 'static,
+        socket: impl AsyncReadExt + AsyncWriteExt + Send + Sync + Unpin + 'static,
         functions: Arc<RwLock<HashMap<u32, Arc<dyn HandlerFn>>>>,
     ) {
-        let mut connection = Connection::new(Box::new(socket), functions);
+        let connection = Connection::new(Box::new(socket), functions);
 
         match tokio::time::timeout(Duration::from_secs(5), connection.recv_handshake())
             .await

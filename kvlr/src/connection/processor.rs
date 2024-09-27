@@ -4,7 +4,7 @@ use tokio::{
     io::AsyncWriteExt,
     sync::{
         mpsc::{Receiver, Sender},
-        oneshot, RwLock,
+        oneshot,
     },
 };
 use tracing::error;
@@ -18,7 +18,7 @@ use crate::{
 
 // TODO: think (more) about termination
 pub(super) async fn read_processor(
-    this: Arc<RwLock<Connection>>,
+    this: Arc<Connection>,
     mut stream: Box<dyn StreamRead>,
     _tx: Sender<Frame>,
 ) {

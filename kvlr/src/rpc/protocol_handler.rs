@@ -5,7 +5,6 @@ use std::{
 
 use async_trait::async_trait;
 use bytes::Buf;
-use tokio::sync::RwLock;
 use tracing::{error, warn};
 
 use crate::{
@@ -33,7 +32,12 @@ struct HandleCallParams<'a> {
 }
 
 impl RpcProtocolHandler {
-    async fn handle_call(&self, mut reader: impl Buf, params: HandleCallParams<'_>) {
+    async fn handle_call(
+        &self,
+        connection: &Arc<Connection>,
+        mut reader: impl Buf,
+        params: HandleCallParams<'_>,
+    ) {
         let fn_id = reader.get_u32();
         let call_id = CallID(reader.get_u32());
         // info!(call_id, is_pipelined, "Incoming call");
@@ -49,9 +53,10 @@ impl RpcProtocolHandler {
             Some(h) => {
                 // info!(call_id, "Berim handle");
 
-                let args_wire = params.frame.body[9..].to_vec();
                 let frame_sender = params.frame_sender.clone();
+                let connection = connection.clone();
                 let pipelining_data = params.pipelining_data.clone();
+                let args_wire = params.frame.body[9..].to_vec();
 
                 // info!(call_id, "Berim spawn");
                 tokio::spawn(async move {
@@ -63,7 +68,7 @@ impl RpcProtocolHandler {
                             None
                         };
 
-                        tokio::spawn(h(pipelining_data, args_wire)).await
+                        tokio::spawn(h(connection, pipelining_data, args_wire)).await
                     };
 
                     let rpc_response = match logic_handler {
@@ -124,17 +129,13 @@ impl RpcProtocolHandler {
 
 #[async_trait]
 impl ProtocolHandler for RpcProtocolHandler {
-    async fn handle_frame(&self, connection: &Arc<RwLock<Connection>>, frame: &Frame) {
-        let (functions, promises, frame_sender, pipelining_data) = {
-            let connection = connection.read().await;
+    async fn handle_frame(&self, connection: &Arc<Connection>, frame: &Frame) {
+        let functions = connection.rpc_state.functions.clone();
+        let promises = connection.rpc_state.promises.clone();
 
-            let functions = connection.rpc_state.functions.clone();
-            let promises = connection.rpc_state.promises.clone();
-            let frame_sender = connection.create_frame_sender().await;
-            let pipelining_data = connection.rpc_state.pipelining_data.clone();
-
-            (functions, promises, frame_sender, pipelining_data)
-        };
+        // TODO: This call locks
+        let frame_sender = connection.create_frame_sender().await;
+        let pipelining_data = connection.rpc_state.pipelining_data.clone();
 
         let mut reader = Cursor::new(&frame.body);
 
@@ -145,6 +146,7 @@ impl ProtocolHandler for RpcProtocolHandler {
 
         if is_call {
             self.handle_call(
+                connection,
                 reader,
                 HandleCallParams {
                     frame,

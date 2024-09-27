@@ -7,25 +7,33 @@ use std::{
 use tokio::sync::oneshot;
 
 use super::{pipelining::PipeliningData, CallID, RpcResponse};
-use crate::promise_utils::FutureSyncSend;
+use crate::{connection::Connection, promise_utils::FutureSyncSend};
 
 pub trait HandlerFn:
-    (Fn(Option<PipeliningData>, Vec<u8>) -> Pin<Box<dyn FutureSyncSend<Vec<u8>>>>) + Sync + Send
+    (Fn(Arc<Connection>, Option<PipeliningData>, Vec<u8>) -> Pin<Box<dyn FutureSyncSend<Vec<u8>>>>)
+    + Sync
+    + Send
 {
 }
 
 impl<T> HandlerFn for T where
-    T: (Fn(Option<PipeliningData>, Vec<u8>) -> Pin<Box<dyn FutureSyncSend<Vec<u8>>>>) + Sync + Send
+    T: (Fn(
+            Arc<Connection>,
+            Option<PipeliningData>,
+            Vec<u8>,
+        ) -> Pin<Box<dyn FutureSyncSend<Vec<u8>>>>)
+        + Sync
+        + Send
 {
 }
 
 // Turns an async closure into a proper HandlerFn
 pub fn into_handler<F, T>(fnc: F) -> Arc<dyn HandlerFn>
 where
-    F: 'static + Sync + Send + Fn(Option<PipeliningData>, Vec<u8>) -> T,
+    F: 'static + Sync + Send + Fn(Arc<Connection>, Option<PipeliningData>, Vec<u8>) -> T,
     T: 'static + FutureSyncSend<Vec<u8>>,
 {
-    Arc::new(move |pld, slice| Box::pin(fnc(pld, slice)))
+    Arc::new(move |conn, pld, slice| Box::pin(fnc(conn, pld, slice)))
 }
 
 pub(crate) struct ConnectionState {
@@ -35,7 +43,7 @@ pub(crate) struct ConnectionState {
     pub(crate) pipelining_data: PipeliningData,
 
     // Client-side
-    // TODO: Limit max panding promises?
+    // TODO: Limit max pending promises?
     pub(crate) promises: Promises,
     pub(crate) next_call_id: Arc<Mutex<u32>>,
 }

@@ -25,6 +25,7 @@ use crate::rpc::{
     connection_state::{Functions, HandlerFn, Promises},
     rpc_manager::RpcManager,
 };
+use crate::streaming;
 
 #[derive(Debug, Error)]
 pub enum HandshakeError {
@@ -36,11 +37,11 @@ pub enum HandshakeError {
     WriteError,
 }
 
-pub trait StreamRead: AsyncRead + Send + Unpin {}
-impl<T> StreamRead for T where T: AsyncRead + Send + Unpin {}
+pub trait StreamRead: AsyncRead + Send + Sync + Unpin {}
+impl<T> StreamRead for T where T: AsyncRead + Send + Sync + Unpin {}
 
-pub trait StreamWrite: AsyncWrite + Send + Unpin {}
-impl<T> StreamWrite for T where T: AsyncWrite + Send + Unpin {}
+pub trait StreamWrite: AsyncWrite + Send + Sync + Unpin {}
+impl<T> StreamWrite for T where T: AsyncWrite + Send + Sync + Unpin {}
 
 enum State {
     PreHandshake {
@@ -61,25 +62,43 @@ enum State {
     Undefined,
 }
 
+impl State {
+    fn get_read(&mut self) -> &mut Box<dyn StreamRead> {
+        match self {
+            State::PreHandshake { ref mut read, .. } => read,
+            _ => panic!("Trying to directly access read handle of a kvlr::Connection!"),
+        }
+    }
+
+    fn get_write(&mut self) -> &mut Box<dyn StreamWrite> {
+        match self {
+            State::PreHandshake { ref mut write, .. } => write,
+            _ => panic!("Trying to directly access write handle of a kvlr::Connection!"),
+        }
+    }
+}
+
 pub struct Connection {
-    state: State,
+    // TODO: Make this a normal lock
+    state: tokio::sync::RwLock<State>,
 
     // Used to store connection-specific information for RPC
     pub(crate) rpc_state: rpc::connection_state::ConnectionState,
+    pub(crate) streaming_state: streaming::connection_state::ConnectionState,
 }
 
 impl Connection {
-    pub fn new<T: Stream + 'static>(
+    pub fn new<T: Stream + Sync + 'static>(
         stream: T,
         functions: Arc<RwLock<HashMap<u32, Arc<dyn HandlerFn>>>>,
     ) -> Connection {
         let (stream_read, stream_write) = tokio::io::split(stream);
 
         Connection {
-            state: State::PreHandshake {
+            state: tokio::sync::RwLock::new(State::PreHandshake {
                 read: Box::new(stream_read),
                 write: Box::new(stream_write),
-            },
+            }),
 
             rpc_state: rpc::connection_state::ConnectionState {
                 functions: Functions(functions),
@@ -89,27 +108,20 @@ impl Connection {
                 // It starts with one...
                 next_call_id: Arc::new(Mutex::new(1)),
             },
-        }
-    }
 
-    fn get_read(&mut self) -> &mut Box<dyn StreamRead> {
-        match &mut self.state {
-            State::PreHandshake { ref mut read, .. } => read,
-            _ => panic!("Trying to directly access read handle of a kvlr::Connection!"),
-        }
-    }
-
-    fn get_write(&mut self) -> &mut Box<dyn StreamWrite> {
-        match &mut self.state {
-            State::PreHandshake { ref mut write, .. } => write,
-            _ => panic!("Trying to directly access write handle of a kvlr::Connection!"),
+            streaming_state: streaming::connection_state::ConnectionState {
+                incoming_streams: RwLock::new(Default::default())
+            }
         }
     }
 
     // TODO: We might find the "error" early in buf, so we might not need to read it all.
-    async fn wait_for_data(&mut self, data: &[u8]) -> Result<(), HandshakeError> {
+    async fn wait_for_data(&self, data: &[u8]) -> Result<(), HandshakeError> {
         let mut buf = vec![0; data.len()];
-        self.get_read()
+        self.state
+            .write()
+            .await
+            .get_read()
             .read_exact(&mut buf)
             .await
             .map_err(|_| HandshakeError::ReadError)?;
@@ -122,9 +134,12 @@ impl Connection {
     }
 
     /// Performs server's role in handshake
-    pub async fn recv_handshake(&mut self) -> Result<(), HandshakeError> {
+    pub async fn recv_handshake(&self) -> Result<(), HandshakeError> {
         self.wait_for_data(b"KVLR").await?;
-        self.get_write()
+        self.state
+            .write()
+            .await
+            .get_write()
             .write_all(b"KVLR")
             .await
             .map_err(|_| HandshakeError::WriteError)?;
@@ -132,8 +147,11 @@ impl Connection {
     }
 
     /// Performs client's role in handshake
-    pub async fn send_handshake(&mut self) -> Result<(), HandshakeError> {
-        self.get_write()
+    pub async fn send_handshake(&self) -> Result<(), HandshakeError> {
+        self.state
+            .write()
+            .await
+            .get_write()
             .write_all(b"KVLR")
             .await
             .map_err(|_| HandshakeError::WriteError)?;
@@ -141,26 +159,19 @@ impl Connection {
         Ok(())
     }
 
-    /// Waits for a frame
-    // TODO: Read header first and drop invalid protocols?
-    // TODO: Move body
-    // pub async fn recv_frame(&mut self) -> Result<Frame, RecvFrameError> {
-    //     Frame::read_from_stream(self.get_read()).await
-    // }
-
     pub async fn send_frame(&self, frame: Frame) -> std::io::Result<()> {
         self.create_frame_sender().await.send_frame(frame).await
     }
 
     /// Changes the connection's state to established.
     /// MUST be called manually after handshaking
-    pub async fn establish(
-        mut self,
-        rx_buffer_size: usize,
-        tx_buffer_size: usize,
-    ) -> Arc<tokio::sync::RwLock<Connection>> {
+    pub async fn establish(self, rx_buffer_size: usize, tx_buffer_size: usize) -> Arc<Connection> {
         // Not the best thing we could do...
-        let prev_state = mem::replace(&mut self.state, State::Undefined);
+        // FIXME:
+        let prev_state = {
+            let mut lock = self.state.write().await;
+            mem::replace(&mut (*lock), State::Undefined)
+        };
 
         let (stream_read, stream_write) = match prev_state {
             State::PreHandshake { read, write } => (read, write),
@@ -172,13 +183,13 @@ impl Connection {
         let (tx, out_rx) = mpsc::channel(rx_buffer_size);
         let (out_tx, rx) = mpsc::channel(tx_buffer_size);
 
-        let self_arc = Arc::new(tokio::sync::RwLock::new(self));
+        let self_arc = Arc::new(self);
 
         let read_processor_handle = tokio::spawn(read_processor(self_arc.clone(), stream_read, tx));
         let write_processor_handle = tokio::spawn(write_processor(stream_write, rx));
 
         // TODO: processors might depend on State::Established?
-        self_arc.write().await.state = State::Established {
+        *self_arc.state.write().await = State::Established {
             _rx: out_rx,
             tx: out_tx,
 
@@ -189,25 +200,29 @@ impl Connection {
         self_arc
     }
 
-    pub async fn close(&mut self) -> std::io::Result<()> {
+    pub async fn close(&self) -> std::io::Result<()> {
         self.send_frame(Frame {
             protocol: "close".into(),
             body: vec![],
         })
         .await?;
 
-        if let State::Established {
-            ref read_processor_handle,
-            ref write_processor_handle,
-            ..
-        } = self.state
         {
-            read_processor_handle.abort();
-            write_processor_handle.abort();
+            let mut lock = self.state.write().await;
+            if let State::Established {
+                ref read_processor_handle,
+                ref write_processor_handle,
+                ..
+            } = *lock
+            {
+                read_processor_handle.abort();
+                write_processor_handle.abort();
+            }
+
+            // TODO: Maybe add a new disconnected state?
+            *lock = State::Undefined;
         }
 
-        // TODO: Maybe add a new disconnected state?
-        self.state = State::Undefined;
         Ok(())
     }
 
@@ -220,7 +235,7 @@ impl Connection {
     }
 
     pub(crate) async fn create_frame_sender(&self) -> ConnectionFrameSender {
-        match self.state {
+        match *self.state.read().await {
             State::Established { ref tx, .. } => ConnectionFrameSender(tx.clone()),
             _ => panic!(
                 "Attempting to create a frame sender on a connection which is not established"

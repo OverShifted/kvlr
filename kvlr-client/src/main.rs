@@ -1,13 +1,10 @@
 mod client;
 
 use std::{
-    net::IpAddr,
-    str::FromStr,
-    sync::Arc,
-    time::{Duration, SystemTime},
+    collections::HashMap, net::IpAddr, str::FromStr, sync::{Arc, RwLock}, time::{Duration, SystemTime}
 };
 
-use kvlr::{client::request::Request, connection::Connection, promise_utils::PromiseHelper};
+use kvlr::{client::request::Request, connection::Connection, promise_utils::PromiseHelper, streaming::{server::StreamRpc, stream_receiver::StreamReceiver}};
 use tokio::net::TcpStream;
 use tokio_rustls::{
     rustls::{
@@ -54,23 +51,37 @@ async fn main() {
 
     let stream = TcpStream::connect("127.0.0.1:5857").await.unwrap();
     // stream.set_nodelay(true).unwrap();
-    let mut config = ClientConfig::builder()
-        .with_safe_defaults()
-        .with_custom_certificate_verifier(Arc::new(TrueVerifier))
-        .with_no_client_auth();
-    config
-        .dangerous()
-        .set_certificate_verifier(Arc::new(TrueVerifier));
+    let config = {
+        let mut config = ClientConfig::builder()
+            .with_safe_defaults()
+            .with_custom_certificate_verifier(Arc::new(TrueVerifier))
+            .with_no_client_auth();
+
+        config
+            .dangerous()
+            .set_certificate_verifier(Arc::new(TrueVerifier));
+
+        config
+    };
+
     let config = TlsConnector::from(Arc::new(config));
     let domain = ServerName::IpAddress(IpAddr::from_str("127.0.0.1").unwrap());
     let stream = config.connect(domain, stream).await.unwrap();
     stream.get_ref().0.set_nodelay(true).unwrap();
 
-    let mut connection = Connection::new(Box::new(stream), Default::default());
+    let functions = {
+        let mut functions = HashMap::new();
+
+        StreamRpc::register(&mut functions);
+
+        Arc::new(RwLock::new(functions))
+    };
+
+    let connection = Connection::new(Box::new(stream), functions);
     connection.send_handshake().await.unwrap();
 
     let connection = connection.establish(3, 10).await;
-    let rpc_manager = connection.read().await.create_rpc_manager().await;
+    let rpc_manager = connection.create_rpc_manager().await;
 
     // TODO: Avoid hangs. maybe add a new CallID type?
     let call_id = client::Add { arg0: 10, arg1: 20 }
@@ -102,6 +113,14 @@ async fn main() {
 
     info!(res, "AppendString");
 
+    let mut recv = StreamReceiver::<String>::new(42.into(), &connection, 10);
+    tokio::spawn(async move {
+        while let Ok(items_bytes) = recv.rx.recv().await {
+            let items: Vec<String> = rmp_serde::from_slice(&items_bytes).unwrap();
+            info!(?items, "Item(s) recved!");
+        }
+    });
+
     let res = client::RangeVec { arg0: 200 }
         .call(rpc_manager.clone())
         .await
@@ -118,8 +137,8 @@ async fn main() {
         },
     );
 
-    tokio::time::sleep(Duration::from_millis(1)).await;
+    tokio::time::sleep(Duration::from_millis(1000 * 5)).await;
 
-    connection.write().await.close().await.unwrap();
+    connection.close().await.unwrap();
     info!("Sent!");
 }
