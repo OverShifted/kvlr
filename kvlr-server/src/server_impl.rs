@@ -1,7 +1,10 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use kvlr::{connection::Connection, streaming::{stream_sender::StreamSender, StreamID}};
+use kvlr::{
+    connection::Connection,
+    streaming::{stream_sender::StreamSender, StreamID},
+};
 
 use crate::server_trait::SomeFunctions;
 
@@ -19,7 +22,8 @@ impl SomeFunctions for ServerImpl {
 
     async fn range_vec(&self, conn: Arc<Connection>, arg0: u32) -> Vec<u32> {
         tokio::spawn(async move {
-            let sender: StreamSender<String> = StreamSender::new(StreamID(42), conn.create_rpc_manager().await);
+            let sender: StreamSender<String> =
+                StreamSender::new(StreamID(42), conn.create_rpc_manager().await);
             let items: Vec<String> = vec![
                 "I".into(),
                 " need".into(),
@@ -32,7 +36,7 @@ impl SomeFunctions for ServerImpl {
                 " all".into(),
                 " I".into(),
                 " need".into(),
-                ".".into()
+                ".".into(),
             ];
 
             for chunk in items.chunks(2) {

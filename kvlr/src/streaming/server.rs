@@ -16,7 +16,13 @@ pub struct StreamRpc;
 
 impl StreamRpc {
     fn handle_incoming_stream(conn: Arc<Connection>, stream_id: StreamID, stream_data: Vec<u8>) {
-        if let Some(chan) = conn.streaming_state.incoming_streams.read().unwrap().get(&stream_id) {
+        if let Some(chan) = conn
+            .streaming_state
+            .incoming_streams
+            .read()
+            .unwrap()
+            .get(&stream_id)
+        {
             let _ = chan.send(stream_data);
         } else {
             // TODO: Implement caching or auto-register streams via the "atom" system

@@ -9,7 +9,7 @@ use super::{client::Stream, StreamID};
 pub struct StreamSender<T: Serialize> {
     stream_id: StreamID,
     rpc_manager: RpcManager,
-    pd: PhantomData<T>
+    pd: PhantomData<T>,
 }
 
 impl<T: Serialize> StreamSender<T> {
@@ -17,18 +17,23 @@ impl<T: Serialize> StreamSender<T> {
         StreamSender {
             stream_id,
             rpc_manager,
-            pd: PhantomData
+            pd: PhantomData,
         }
     }
 
     pub async fn send_and_ack(&self, items: &[T]) -> Result<(), ()> {
         // TODO: Maybe we can prevent RpcManager from getting cloned?
-        self.as_stream_request(items).call(self.rpc_manager.clone()).await
+        self.as_stream_request(items)
+            .call(self.rpc_manager.clone())
+            .await
     }
 
     pub async fn send(&self, items: &[T]) -> Result<(), ()> {
         // TODO: Maybe we can prevent RpcManager from getting cloned?
-        self.as_stream_request(items).call_dropped(self.rpc_manager.clone()).await.map(|_| ())
+        self.as_stream_request(items)
+            .call_dropped(self.rpc_manager.clone())
+            .await
+            .map(|_| ())
     }
 
     fn as_stream_request(&self, items: &[T]) -> Stream {
@@ -36,7 +41,7 @@ impl<T: Serialize> StreamSender<T> {
             arg0: self.stream_id.0,
 
             // TODO: Prevent copies
-            arg1: rmp_serde::to_vec(&items).unwrap()
+            arg1: rmp_serde::to_vec(&items).unwrap(),
         }
     }
 }

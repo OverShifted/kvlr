@@ -10,7 +10,7 @@ use kvlr_derives::Request;
 #[kvlr_request_response = "()"]
 pub struct Stream {
     pub arg0: u32,
-    pub arg1: Vec<u8>
+    pub arg1: Vec<u8>,
 }
 
 #[derive(Debug, Serialize, Request)]
@@ -19,5 +19,5 @@ pub struct Stream {
 #[kvlr_request_response = "()"]
 pub struct StreamPipelined {
     pub arg0: MaybePipelinedValue<u32>,
-    pub arg1: MaybePipelinedValue<Vec<u8>>
+    pub arg1: MaybePipelinedValue<Vec<u8>>,
 }

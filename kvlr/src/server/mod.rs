@@ -41,14 +41,16 @@ impl Server {
         loop {
             tokio::select! {
                 stream = self.listener.accept() => {
-                    match stream.unwrap() {
-                        Ok(stream) => {
+                    // TODO: Avoid unwraps in critical tasks
+                    match stream {
+                        Ok((stream, _addr)) => {
                             stream.get_ref().0.set_nodelay(true).unwrap();
                             let functions = self.functions.clone();
                             tasks.push(tokio::spawn(async move {
                                 Self::handle_connection(stream, functions).await
                             }))
                         }
+
                         Err(error) => error!("Could not accept connection: {}", error),
                     };
                 },

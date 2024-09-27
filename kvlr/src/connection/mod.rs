@@ -110,8 +110,8 @@ impl Connection {
             },
 
             streaming_state: streaming::connection_state::ConnectionState {
-                incoming_streams: RwLock::new(Default::default())
-            }
+                incoming_streams: RwLock::new(Default::default()),
+            },
         }
     }
 

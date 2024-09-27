@@ -12,15 +12,15 @@ bytes = "1"
 multimap = "0.10.0"
 rmp-serde = "1"
 # ron = "0.8"
-rustls = "0.21"
-rustls-pemfile = "1.0"
+rustls = "0.23"
+rustls-pemfile = "2"
 seq-macro = "0.3.5"
 serde = { version = "1", features = ["serde_derive"] }
 serde_json = "1"
 thiserror = "1"
-tls-listener = { version = "0.5", features = ["rustls"] }
+tls-listener = { version = "0.10", features = ["rustls"] }
 tokio = { version = "1", features = ["net"] }
-tokio-rustls = "0.23"
+tokio-rustls = "0.26"
 tracing = "0.1"
 tracing-subscriber = "0.3"
 

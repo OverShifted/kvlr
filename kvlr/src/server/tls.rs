@@ -1,3 +1,4 @@
+use rustls::pki_types::CertificateDer;
 use std::sync::Arc;
 use tokio_rustls::rustls::ServerConfig;
 
@@ -8,22 +9,18 @@ pub fn acceptor(key_path: &str, cert_path: &str) -> tokio_rustls::TlsAcceptor {
     let key = {
         let file = std::fs::File::open(key_path).unwrap();
         let mut reader = std::io::BufReader::new(file);
-        let keys = rustls_pemfile::rsa_private_keys(&mut reader).unwrap();
-        tokio_rustls::rustls::PrivateKey(keys[0].clone())
+        rustls_pemfile::private_key(&mut reader).unwrap().unwrap()
     };
 
-    let cert = {
+    let cert: Vec<CertificateDer<'static>> = {
         let file = std::fs::File::open(cert_path).unwrap();
         let mut reader = std::io::BufReader::new(file);
         rustls_pemfile::certs(&mut reader)
+            .collect::<std::io::Result<Vec<CertificateDer<'static>>>>()
             .unwrap()
-            .into_iter()
-            .map(tokio_rustls::rustls::Certificate)
-            .collect()
     };
 
     let mut config = ServerConfig::builder()
-        .with_safe_defaults()
         .with_no_client_auth()
         .with_single_cert(cert, key)
         .unwrap();
