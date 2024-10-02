@@ -6,6 +6,6 @@
 /.vscode
 /.idea
 
-cert.pem
-key.pem
 __pycache__
+
+/keys

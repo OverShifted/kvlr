@@ -6,78 +6,25 @@ use std::{
     time::{Duration, SystemTime},
 };
 
+use rustls::{
+    client::ClientConfig,
+    pki_types::{CertificateDer, ServerName},
+    RootCertStore,
+};
+
+use tokio::net::TcpStream;
+use tokio_rustls::TlsConnector;
+use tracing::{error, info, Level};
+use tracing_subscriber::FmtSubscriber;
+
 use kvlr::{
     client::request::Request,
     connection::Connection,
     promise_utils::PromiseHelper,
     streaming::{server::StreamRpc, stream_receiver::StreamReceiver},
+    utils::array_buf_read,
 };
-use rustls::{
-    pki_types::{CertificateDer, ServerName, UnixTime},
-    SignatureScheme,
-};
-use tokio::net::TcpStream;
-use tokio_rustls::{
-    rustls::{
-        client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier},
-        ClientConfig, DigitallySignedStruct, Error,
-    },
-    TlsConnector,
-};
-use tracing::{error, info, Level};
-use tracing_subscriber::FmtSubscriber;
 
-#[derive(Debug)]
-struct TrueVerifier;
-
-impl ServerCertVerifier for TrueVerifier {
-    fn verify_server_cert(
-        &self,
-        _end_entity: &CertificateDer<'_>,
-        _intermediates: &[CertificateDer<'_>],
-        _server_name: &ServerName<'_>,
-        _ocsp_response: &[u8],
-        _now: UnixTime,
-    ) -> Result<ServerCertVerified, Error> {
-        Ok(ServerCertVerified::assertion())
-    }
-
-    fn verify_tls12_signature(
-        &self,
-        _message: &[u8],
-        _cert: &CertificateDer<'_>,
-        _dss: &DigitallySignedStruct,
-    ) -> Result<HandshakeSignatureValid, Error> {
-        Ok(HandshakeSignatureValid::assertion())
-    }
-
-    fn verify_tls13_signature(
-        &self,
-        _message: &[u8],
-        _cert: &CertificateDer<'_>,
-        _dss: &DigitallySignedStruct,
-    ) -> Result<HandshakeSignatureValid, Error> {
-        Ok(HandshakeSignatureValid::assertion())
-    }
-
-    fn supported_verify_schemes(&self) -> Vec<SignatureScheme> {
-        vec![
-            // SignatureScheme::RSA_PKCS1_SHA1,
-            // SignatureScheme::ECDSA_SHA1_Legacy,
-            // SignatureScheme::RSA_PKCS1_SHA256,
-            // SignatureScheme::ECDSA_NISTP256_SHA256,
-            // SignatureScheme::RSA_PKCS1_SHA384,
-            // SignatureScheme::ECDSA_NISTP384_SHA384,
-            // SignatureScheme::RSA_PKCS1_SHA512,
-            // SignatureScheme::ECDSA_NISTP521_SHA512,
-            SignatureScheme::RSA_PSS_SHA256,
-            // SignatureScheme::RSA_PSS_SHA384,
-            // SignatureScheme::RSA_PSS_SHA512,
-            // SignatureScheme::ED25519,
-            // SignatureScheme::ED448
-        ]
-    }
-}
 
 #[tokio::main]
 async fn main() {
@@ -88,14 +35,23 @@ async fn main() {
         .expect("Setting default subscriber failed.");
 
     let stream = TcpStream::connect("127.0.0.1:5857").await.unwrap();
-    // stream.set_nodelay(true).unwrap();
+
+    let mut ca_cert_bytes = array_buf_read(include_bytes!("../../keys/ca.crt"));
+    let ca_cert: CertificateDer<'static> = rustls_pemfile::certs(&mut ca_cert_bytes)
+        .collect::<std::io::Result<Vec<_>>>()
+        .unwrap()[0]
+        .clone();
+
+    let mut root_cert_store = RootCertStore::empty();
+    root_cert_store.add(ca_cert).unwrap();
+
+    stream.set_nodelay(true).unwrap();
     let config = ClientConfig::builder()
-        .dangerous()
-        .with_custom_certificate_verifier(Arc::new(TrueVerifier))
+        .with_root_certificates(root_cert_store)
         .with_no_client_auth();
 
     let config = TlsConnector::from(Arc::new(config));
-    let domain = ServerName::try_from("127.0.0.1").unwrap();
+    let domain = ServerName::try_from("localhost").unwrap();
     let stream = config.connect(domain, stream).await.unwrap();
     stream.get_ref().0.set_nodelay(true).unwrap();
 

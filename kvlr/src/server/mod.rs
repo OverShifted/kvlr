@@ -6,6 +6,7 @@ use crate::rpc::connection_state::HandlerFn;
 use crate::utils::Unfold;
 use anyhow::Context;
 use std::collections::HashMap;
+use std::io::BufRead;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use tls_listener::TlsListener;
@@ -22,12 +23,12 @@ pub struct Server {
 
 impl Server {
     pub async fn new(
-        key_path: &str,
-        cert_path: &str,
+        key: &mut dyn BufRead,
+        cert: &mut dyn BufRead,
         functions: Arc<RwLock<HashMap<u32, Arc<dyn HandlerFn>>>>,
     ) -> std::io::Result<Server> {
         Ok(Server {
-            listener: tls_listener::builder(tls::acceptor(key_path, cert_path))
+            listener: tls_listener::builder(tls::acceptor(key, cert))
                 .handshake_timeout(Duration::from_secs(10))
                 .listen(TcpListener::bind("0.0.0.0:5857").await?),
             functions,
