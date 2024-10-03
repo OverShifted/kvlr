@@ -2,13 +2,14 @@ mod client;
 
 use std::{
     collections::HashMap,
+    io::Cursor,
     sync::{Arc, RwLock},
     time::{Duration, SystemTime},
 };
 
 use rustls::{
     client::ClientConfig,
-    pki_types::{CertificateDer, ServerName},
+    pki_types::{pem::PemObject, CertificateDer, ServerName},
     RootCertStore,
 };
 
@@ -22,9 +23,7 @@ use kvlr::{
     connection::Connection,
     promise_utils::PromiseHelper,
     streaming::{server::StreamRpc, stream_receiver::StreamReceiver},
-    utils::array_buf_read,
 };
-
 
 #[tokio::main]
 async fn main() {
@@ -36,11 +35,13 @@ async fn main() {
 
     let stream = TcpStream::connect("127.0.0.1:5857").await.unwrap();
 
-    let mut ca_cert_bytes = array_buf_read(include_bytes!("../../keys/ca.crt"));
-    let ca_cert: CertificateDer<'static> = rustls_pemfile::certs(&mut ca_cert_bytes)
-        .collect::<std::io::Result<Vec<_>>>()
-        .unwrap()[0]
-        .clone();
+    let ca_cert_bytes = include_bytes!("../../keys/ca.crt");
+    let ca_cert = CertificateDer::pem_reader_iter(Cursor::new(ca_cert_bytes))
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap()
+        .into_iter()
+        .next()
+        .unwrap();
 
     let mut root_cert_store = RootCertStore::empty();
     root_cert_store.add(ca_cert).unwrap();

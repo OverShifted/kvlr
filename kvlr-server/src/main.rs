@@ -4,16 +4,16 @@ mod server_trait;
 
 use std::{
     collections::HashMap,
+    io::Cursor,
     sync::{Arc, RwLock},
 };
 
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
 
-use kvlr::{server::Server, utils::array_buf_read};
+use kvlr::server::Server;
 use server_impl::ServerImpl;
 use server_trait::SomeFunctions;
-
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -26,12 +26,12 @@ async fn main() -> anyhow::Result<()> {
     let mut functions = HashMap::new();
     ServerImpl::register(Arc::new(ServerImpl), &mut functions);
 
-    let mut key_bytes = array_buf_read(include_bytes!("../../keys/server.key"));
-    let mut cert_bytes = array_buf_read(include_bytes!("../../keys/server.crt"));
+    let key_bytes = include_bytes!("../../keys/server.key");
+    let cert_bytes = include_bytes!("../../keys/server.crt");
 
     Server::new(
-        &mut key_bytes,
-        &mut cert_bytes,
+        Cursor::new(key_bytes),
+        Cursor::new(cert_bytes),
         Arc::new(RwLock::new(functions)),
     )
     .await?

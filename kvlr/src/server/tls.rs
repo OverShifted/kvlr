@@ -1,18 +1,14 @@
-use rustls::pki_types::CertificateDer;
-use std::{io, sync::Arc};
+use rustls::pki_types::{pem::PemObject, CertificateDer, PrivateKeyDer};
+use std::sync::Arc;
 use tokio_rustls::rustls::ServerConfig;
 
 pub use tokio_rustls::server::TlsStream;
 
-// Based on https://github.com/tmccombs/tls-listener/blob/main/examples/tls_config/mod.rs
-pub fn acceptor(
-    key: &mut dyn io::BufRead,
-    cert: &mut dyn io::BufRead,
-) -> tokio_rustls::TlsAcceptor {
-    let key = rustls_pemfile::private_key(key).unwrap().unwrap();
+pub fn acceptor(key: impl std::io::Read, cert: impl std::io::Read) -> tokio_rustls::TlsAcceptor {
+    let key = PrivateKeyDer::from_pem_reader(key).unwrap();
 
-    let cert: Vec<CertificateDer<'static>> = rustls_pemfile::certs(cert)
-        .collect::<std::io::Result<_>>()
+    let cert: Vec<CertificateDer<'static>> = CertificateDer::pem_reader_iter(cert)
+        .collect::<Result<_, _>>()
         .unwrap();
 
     let mut config = ServerConfig::builder()

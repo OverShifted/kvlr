@@ -1,9 +1,3 @@
-use std::io::{BufRead, BufReader, Cursor};
-
-pub fn array_buf_read(array: &[u8]) -> impl BufRead + '_ {
-    BufReader::new(Cursor::new(array))
-}
-
 pub trait Unfold {
     type Output;
     fn unfold(self) -> Self::Output;

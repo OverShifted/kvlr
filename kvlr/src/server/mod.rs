@@ -1,12 +1,10 @@
 pub mod tls;
-// pub mod rpc_macro;
 
 use crate::connection::Connection;
 use crate::rpc::connection_state::HandlerFn;
 use crate::utils::Unfold;
 use anyhow::Context;
 use std::collections::HashMap;
-use std::io::BufRead;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use tls_listener::TlsListener;
@@ -17,14 +15,13 @@ use tracing::{error, info};
 
 pub struct Server {
     listener: TlsListener<TcpListener, TlsAcceptor>,
-
     functions: Arc<RwLock<HashMap<u32, Arc<dyn HandlerFn>>>>,
 }
 
 impl Server {
     pub async fn new(
-        key: &mut dyn BufRead,
-        cert: &mut dyn BufRead,
+        key: impl std::io::Read,
+        cert: impl std::io::Read,
         functions: Arc<RwLock<HashMap<u32, Arc<dyn HandlerFn>>>>,
     ) -> std::io::Result<Server> {
         Ok(Server {
@@ -37,6 +34,7 @@ impl Server {
 
     pub async fn listen(&mut self) {
         info!("Listening.");
+        // TODO: Do something with these tasks
         let mut tasks = vec![];
 
         loop {
