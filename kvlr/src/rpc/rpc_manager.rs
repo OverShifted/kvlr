@@ -105,7 +105,7 @@ impl RpcManager {
     }
 
     // TODO: Better error handling
-    // TODO: Hangs on server panic
+    // TODO: Hangs on server stop
     pub async fn call_raw(
         &self,
         function_id: u32,

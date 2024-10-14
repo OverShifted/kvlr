@@ -3,6 +3,7 @@ mod processor;
 pub(crate) mod protocol_handler;
 pub mod stream;
 
+use std::ops::{Deref, DerefMut};
 use std::sync::{Mutex, RwLock};
 use std::{collections::HashMap, mem, sync::Arc};
 
@@ -19,6 +20,7 @@ use tokio::{
 use frame::Frame;
 use processor::{read_processor, write_processor};
 use stream::Stream;
+use tracing::info;
 
 use crate::rpc::{
     self,
@@ -54,8 +56,8 @@ enum State {
         _rx: Receiver<Frame>,
         tx: Sender<(Frame, oneshot::Sender<std::io::Result<()>>)>,
 
-        read_processor_handle: JoinHandle<()>,
-        write_processor_handle: JoinHandle<()>,
+        read_processor_handle: Option<JoinHandle<()>>,
+        write_processor_handle: Option<JoinHandle<()>>,
     },
 
     // Not the best idea ever!
@@ -185,21 +187,35 @@ impl Connection {
 
         let self_arc = Arc::new(self);
 
-        let read_processor_handle = tokio::spawn(read_processor(self_arc.clone(), stream_read, tx));
-        let write_processor_handle = tokio::spawn(write_processor(stream_write, rx));
-
         // TODO: processors might depend on State::Established?
         *self_arc.state.write().await = State::Established {
             _rx: out_rx,
             tx: out_tx,
 
-            read_processor_handle,
-            write_processor_handle,
+            read_processor_handle: None,
+            write_processor_handle: None,
         };
+
+        let read_processor_handle_right = tokio::spawn(read_processor(self_arc.clone(), stream_read, tx));
+        let write_processor_handle_right = tokio::spawn(write_processor(stream_write, rx));
+
+        {
+            let mut lock = self_arc.state.write().await;
+            if let State::Established {
+                read_processor_handle,
+                write_processor_handle,
+                ..
+            } = lock.deref_mut()
+            {
+                *read_processor_handle = Some(read_processor_handle_right);
+                *write_processor_handle = Some(write_processor_handle_right);
+            }
+        }
 
         self_arc
     }
 
+    // TODO: Colse the underlying connection somewhere
     pub async fn close(&self) -> std::io::Result<()> {
         self.send_frame(Frame {
             protocol: "close".into(),
@@ -210,16 +226,18 @@ impl Connection {
         {
             let mut lock = self.state.write().await;
             if let State::Established {
-                ref read_processor_handle,
-                ref write_processor_handle,
+                read_processor_handle,
+                write_processor_handle,
                 ..
-            } = *lock
+            } = lock.deref()
             {
-                read_processor_handle.abort();
-                write_processor_handle.abort();
+                info!("Aborting processors");
+                read_processor_handle.as_ref().unwrap().abort();
+                write_processor_handle.as_ref().unwrap().abort();
             }
 
             // TODO: Maybe add a new disconnected state?
+            // TODO: It (at least used to) sometimes panicked
             *lock = State::Undefined;
         }
 

@@ -21,6 +21,6 @@ impl From<u32> for CallID {
     }
 }
 
-#[derive(Clone, Copy, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct InternalServerError;
 type RpcResponse = Result<Vec<u8>, InternalServerError>;

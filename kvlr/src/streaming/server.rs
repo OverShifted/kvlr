@@ -15,18 +15,19 @@ use super::StreamID;
 pub struct StreamRpc;
 
 impl StreamRpc {
-    fn handle_incoming_stream(conn: Arc<Connection>, stream_id: StreamID, stream_data: Vec<u8>) {
-        if let Some(chan) = conn
+    async fn handle_incoming_stream(conn: Arc<Connection>, stream_id: StreamID, stream_data: Vec<u8>) {
+        let maybe_tx = conn
             .streaming_state
             .incoming_streams
             .read()
             .unwrap()
-            .get(&stream_id)
-        {
-            let _ = chan.send(stream_data);
-        } else {
+            .get(&stream_id).map(|c| c.clone());
+
+        match maybe_tx {
+            Some(tx) => { let _ = tx.send(stream_data).await; }
+
             // TODO: Implement caching or auto-register streams via the "atom" system
-            warn!("Warning: {:?} is not registered yet.", stream_id);
+            None => warn!("Warning: {:?} is not registered yet.", stream_id)
         }
     }
 
@@ -48,7 +49,8 @@ impl StreamRpc {
                         rmp_serde::from_slice(&slice).unwrap()
                     };
 
-                    let out = Self::handle_incoming_stream(conn, stream_id.into(), stream_data);
+                    use futures::future::FutureExt;
+                    let out = Self::handle_incoming_stream(conn, stream_id.into(), stream_data).shared().await;
 
                     // Always returns void
                     rmp_serde::to_vec(&out).unwrap()

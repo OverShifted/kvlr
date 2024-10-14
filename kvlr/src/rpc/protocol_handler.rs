@@ -40,7 +40,7 @@ impl RpcProtocolHandler {
     ) {
         let fn_id = reader.get_u32();
         let call_id = CallID(reader.get_u32());
-        // info!(call_id, is_pipelined, "Incoming call");
+        // trace!(fn_id, ?call_id, "Incoming call");
 
         // TODO: Remove this lock
         let handler = {
@@ -78,7 +78,7 @@ impl RpcProtocolHandler {
                                 ?err,
                                 ?call_id,
                                 fn_id,
-                                "Call handler failed! (Probably panicked)"
+                                "Call handler failed! (Panicked or canceled)"
                             );
                             Err(InternalServerError)
                         }
@@ -100,7 +100,7 @@ impl RpcProtocolHandler {
                             .unwrap();
                     }
                     // info!(call_id, "Resolved call");
-                });
+                }).await.unwrap();
             }
 
             None => error!(?call_id, fn_id, "No RPC function handler for"),
@@ -133,12 +133,8 @@ impl ProtocolHandler for RpcProtocolHandler {
         let functions = connection.rpc_state.functions.clone();
         let promises = connection.rpc_state.promises.clone();
 
-        // TODO: This call locks
-        let frame_sender = connection.create_frame_sender().await;
-        let pipelining_data = connection.rpc_state.pipelining_data.clone();
-
         let mut reader = Cursor::new(&frame.body);
-
+        
         let flags = reader.get_u8();
         let is_call = flags & 0b1 != 0;
         let is_pipelined = flags & 0b10 != 0;
@@ -153,8 +149,10 @@ impl ProtocolHandler for RpcProtocolHandler {
                     is_pipelined,
                     drop_answer,
                     functions: &functions,
-                    frame_sender: &frame_sender,
-                    pipelining_data: &pipelining_data,
+
+                    // TODO: This call locks
+                    frame_sender: &connection.create_frame_sender().await,
+                    pipelining_data: &connection.rpc_state.pipelining_data.clone(),
                 },
             )
             .await;

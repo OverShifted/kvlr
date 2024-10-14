@@ -45,9 +45,7 @@ impl Server {
                         Ok((stream, _addr)) => {
                             stream.get_ref().0.set_nodelay(true).unwrap();
                             let functions = self.functions.clone();
-                            tasks.push(tokio::spawn(async move {
-                                Self::handle_connection(stream, functions).await
-                            }))
+                            tasks.push(tokio::spawn(Self::handle_connection(stream, functions)))
                         }
 
                         Err(error) => error!("Could not accept connection: {}", error),
@@ -79,6 +77,8 @@ impl Server {
                 let _ = connection.establish(3, 10).await;
             }
         }
+
+        // TODO: Graceful cleanup
     }
 }
 

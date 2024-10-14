@@ -71,6 +71,7 @@ impl Frame {
         // Frame's body
         Write::write(&mut writer, &self.body).unwrap();
 
+        // TODO: Use write vectored (and other places)
         stream.write_all(&buffer).await?;
         Ok(())
     }

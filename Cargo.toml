@@ -1,5 +1,5 @@
 [workspace]
-members = ["kvlr", "kvlr-server", "kvlr-client", "kvlr-derives"]
+members = ["kvlr", "kvlr-server", "kvlr-client", "kvlr-derives", "aren"]
 resolver = "2"
 
 [profile.release]

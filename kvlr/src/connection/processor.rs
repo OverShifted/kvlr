@@ -5,7 +5,7 @@ use tokio::{
     sync::{
         mpsc::{Receiver, Sender},
         oneshot,
-    },
+    }, task::yield_now,
 };
 use tracing::error;
 
@@ -30,6 +30,9 @@ pub(super) async fn read_processor(
                 break;
             }
         };
+
+        // This call prevents an unfrequent panic where a new frame is read on a closed connection
+        yield_now().await;
 
         match frame.protocol.as_str() {
             "close" => break,
@@ -59,4 +62,6 @@ pub(super) async fn write_processor(
         // FIXME: It seems like calling a new async fn has a noticable amount of overhead
         let _ = tx.send(write_and_flush(&mut this, &frame).await);
     }
+
+    // this.shutdown().await.unwrap();
 }
