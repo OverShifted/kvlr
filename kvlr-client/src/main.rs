@@ -88,15 +88,19 @@ async fn main() {
         info!(?res, time=?now.elapsed().unwrap(), "AddPipelined");
     }
 
-    let res = client::AppendString {
-        arg0: "Hello ".to_string(),
-        arg1: "World".to_string(),
-    }
-    .call(rpc_manager.clone())
-    .await
-    .unwrap();
+    {
+        let now = SystemTime::now();
 
-    info!(res, "AppendString");
+        let res = client::AppendString {
+            arg0: "Hello ".to_string(),
+            arg1: "World".to_string(),
+        }
+        .call(rpc_manager.clone())
+        .await
+        .unwrap();
+
+        info!(res, time=?now.elapsed().unwrap(), "AppendString");
+    }
 
     let mut recv = StreamReceiver::<String>::new(42.into(), &connection, 10);
     tokio::spawn(async move {
@@ -106,12 +110,16 @@ async fn main() {
         }
     });
 
-    let res = client::RangeVec { arg0: 200 }
-        .call(rpc_manager.clone())
-        .await
-        .unwrap();
+    {
+        let now = SystemTime::now();
 
-    info!(?res, "RangeVec");
+        let res = client::RangeVec { arg0: 200 }
+            .call(rpc_manager.clone())
+            .await
+            .unwrap();
+
+        info!(?res, time=?now.elapsed().unwrap(), "RangeVec");
+    }
 
     client::CallMeToPanic.call(rpc_manager).on(
         |s| async move {
